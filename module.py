@@ -83,9 +83,13 @@ class Linear(Module):
         self.zero_grad()
         
     def backward_update_gradient(self, input, delta):
-        """ calculer le gradient du coût par rapport aux paramètres 
-            et l’additionner à la variable _gradient - en fonction 
-            de l’entrée input et des δ de la couche suivante delta
+        """ On est dans la couche h, calculer le gradient du coût par
+            rapport aux paramètres et l’additionner à la variable _gradient
+            - en fonction de l’entrée input et des δ de la couche suivante delta
+
+        Args:
+            input (array): z_h-1
+            delta (_type_): _description_
         """
         gradient = 1 # a faire
         self._gradient += gradient
