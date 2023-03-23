@@ -1,6 +1,5 @@
 import numpy as np
 
-
 class Loss(object):
     def forward(self, y, yhat):
         pass
@@ -16,14 +15,6 @@ class MSELoss(Loss):
 
     def backward(self, y, yhat):
         """ Calculer le gradient du cout par rapport yhat
-
-        dL/dyhat = dsum(norm(y-yhat)**2)/dyhat
-        dL/dyhat_k1 = dsum(norm(y-yhat)**2)/dyhat_k1
-                    = dnorm(y_k - yhat_k)**2/dyhat_k1
-                    = d(y_k1 - yhat_k1)**2 + ... + (y_kd - yhat_kd)**2/dyhat_k1
-                    = 2*(-1)(y_k1 - yhat_k1)
-        dL/dyhat_k = 2*(-1)(y_k-yhat_k)
-        dL/dyhat = 2*(-1)(y-yhat) 
         """
         return -2*(y-yhat)
 
@@ -72,7 +63,7 @@ class Linear(Module):
     def forward(self, X):
         """ calculer les sorties du module pour les entrées passées en paramètre 
         """
-        return np.dot(X,self.__parameters) # <x,w>
+        return np.dot(X,self._parameters) # <x,w>
     
     
     def update_parameters(self, gradient_step=1e-3):
@@ -91,18 +82,19 @@ class Linear(Module):
             input (array): z_h-1
             delta (_type_): _description_
         """
-        gradient = 1 # a faire
+        gradient = np.dot(input.T, delta)
+        # print(gradient.shape)
+        # print(self._gradient.shape)
         self._gradient += gradient
-        pass
+        
 
     def backward_delta(self, input, delta):
         """ calculer le gradient du coût par rapport aux entrées 
             en fonction de l’entrée input et des deltas de la couche
             suivante delta
         """
-        pass
+        return np.dot(delta, self._parameters.T)
     
         
     
-
 
