@@ -1,3 +1,5 @@
+import numpy as np
+
 class Loss(object):
     def forward(self, y, yhat):
         pass
@@ -16,6 +18,24 @@ class MSELoss(Loss):
         """
         return -2*(y-yhat)
 
+def logsoftmax(y):
+  return np.exp(y)/np.sum(np.exp(y), axis = 1)[:, np.newaxis]
+
+class SMCELoss(Loss):
+    def forward(self, y, yhat):
+        """Coût cross-entropique
+        y: indice de la classe à prédire, exp pour 1 exemple [0,0,0,1] -> classe 3
+        y_hat: le vecteur de prédiction -> exp pour 1 exemple [0.1, 0.3, 0.4, 0.2]
+        """
+        #-yhat_y + log(sum_i(exp(yhat_i)))
+        return -np.sum(y*yhat, axis = 1) + np.log(np.sum(np.exp(yhat), axis = 1))
+
+    def backward(self, y, yhat):
+        """ Calculer le gradient du cout par rapport yhat
+        """
+        exp_sum_exp = np.exp(yhat)/np.sum(np.exp(yhat), axis = 1)[:, np.newaxis] # 1/sum(exp(yhat_i))
+        tmp_2 = np.where(y==1, -1, 0)
+        return exp_sum_exp + tmp_2 # ou y = 1 -> -1
 
 class Module(object):
     def __init__(self):
@@ -73,7 +93,7 @@ class Linear(Module):
             jusqu’à son appel avec un pas de gradient_step
         """ 
         self._parameters -= gradient_step*self._gradient
-        self._parameters /= np.linalg.norm(self._parameters)
+        #self._parameters /= np.linalg.norm(self._parameters)
         self.zero_grad()
         
     def backward_update_gradient(self, input, delta):
@@ -101,7 +121,7 @@ class Linear(Module):
             en fonction de l’entrée input et des deltas de la couche
             suivante delta
         """
-        #print(f"LIN input {input.shape} delta {delta.shape}")
+        #print(f"LIN input {input.shape} delta {delta.shape} w {self._parameters.shape}")
         return np.dot(delta, self._parameters)
         #return np.dot(delta, self._parameters.T)
     
@@ -148,10 +168,7 @@ class TanH(Module): # (e(z)-e(-z)) / (e(z)+e(-z))
             suivante delta
         """
         #print(f"TANH input {input.shape} delta {delta.shape}")
-        dzda = (2/(np.exp(input)-np.exp(-input)))**2
-        #print(input.shape)
-        #print(dzda.shape)
-        return delta*dzda     
+        return delta * (1 - np.tanh(input) ** 2) 
     
 class Sigmoide(Module): # 1 / (1+e(-z))
     def __init__(self):
@@ -169,7 +186,6 @@ class Sigmoide(Module): # 1 / (1+e(-z))
         """ calculer les sorties du module pour les entrées passées en paramètre 
         """
         return  1/(1+np.exp(-X))
-    
     
     def update_parameters(self, gradient_step=1e-3):
         """ Mettre à jour les paramètres du module selon le gradient accumulé 
@@ -195,10 +211,8 @@ class Sigmoide(Module): # 1 / (1+e(-z))
             suivante delta
         """
         #print(f"SIG input {input.shape} delta {delta.shape}")
-        dzda = np.exp(-input)/(1+np.exp(-input))**2
-        #print(input.shape)
-        #print(dzda.shape)
-        return delta*dzda     
+        return  delta * (1/(1+np.exp(-input))) * (1 - (1/(1+np.exp(-input))))   
+
 
 def f_sig_seq(seq, X):
   A = seq.forward(X)
@@ -219,15 +233,10 @@ class Sequentiel():
   
   def backward(self,loss, Y,gradient_step=0.001):
     delta_ = loss.backward(Y,self.input[-1])
-    #print(len(self.input), len(self.net))
     for i in range(len(self.net)-1,-1,-1): # BACKKKKWARDDDDDDDD
-      #print(type(self.net[i]).__name__)
       if type(self.net[i]).__name__ != 'Linear': # si fonction d'activation
-        #print(f"SEQ ACTI {type(self.net[i]).__name__} input {self.input[i].shape} delta {delta_.shape}")
         delta_ = self.net[i].backward_delta(self.input[i], delta_)
       else: #Lineaire
-        #print("LIN")
-        #print(f"SEQ LIN {type(self.net[i]).__name__} input {self.input[i].shape} delta {delta_.shape}")
         self.net[i].backward_update_gradient(self.input[i],delta_)
         delta_ = self.net[i].backward_delta(self.input[i], delta_)
         self.net[i].update_parameters(gradient_step=gradient_step)
@@ -265,3 +274,4 @@ def SGD(net, data, loss, eps=1e-4, batch_taille=40, nb_iter=5):
     for mini_batch in tab_mini_batches: # apprentissage sur chaque mini batch
       batch_x, batch_y = np.array(mini_batch[:,0].tolist()), np.array(mini_batch[:,1].tolist()) # array de array -> array de liste
       opt.step(batch_x, batch_y)
+
