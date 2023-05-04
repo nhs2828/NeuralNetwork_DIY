@@ -18,12 +18,6 @@ class MSELoss(Loss):
         """
         return -2*(y-yhat)
         
-class CrossEntropyLoss(Loss):
-    def forward(self, y, yhat):
-        return 1 - (yhat * y).sum(axis=1)
-
-    def backward(self, y, yhat):
-        return yhat - y
 
 class SMCELoss(Loss):
     def forward(self, y, yhat):
