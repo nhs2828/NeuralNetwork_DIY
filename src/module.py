@@ -1,3 +1,4 @@
+83% of storage used … You can clean up space or get more storage for Drive, Gmail, and Google Photos.
 import numpy as np
 
 class Module(object):
@@ -237,14 +238,9 @@ class Conv1D(Module):
         self._parameters = np.random.randn(chan_out, k_size*chan_in) # nb_couche X ksize*C
     else:
         borne = np.sqrt(6 / (self.chan_in + self.chan_out))
-        self._parameters = np.random.uniform(-borne, borne, (chan_out, k_size*chan_in))
-    if chan_out == 1:
-      self._parameters.reshape(1, -1)
+        self._parameters = np.random.uniform(-borne, borne, (self.k_size, self.chan_in, self.chan_out))
     self._gradient = np.zeros_like(self._parameters)
-    self.k_size = k_size
-    self.chan_in = chan_in
-    self.chan_out = chan_out
-    self.stride = stride
+
 
 
   def zero_grad(self):
@@ -252,35 +248,32 @@ class Conv1D(Module):
 
   def forward(self, X):
     n_batch, d, C = X.shape
-    o = np.zeros((n_batch, (d - self.k_size)//self.stride + 1, self.chan_out)) # une sortie est 2D d_out X chan_out
-    for i in range(0,(d-self.k_size)//self.stride+1,self.stride):
-        # applatir la fenetre X
-        fenetre_X = X[:, i*self.stride:i*self.stride+self.k_size, :].reshape(n_batch, -1)
-        #fenetre_X = np.array([np.transpose(x) for x in X[:, i*self.stride:i*self.stride+self.k_size, :]]).reshape(n_batch,-1) # si W = x_1_c1,.., x_ksize_c1, ...,x_1_c,.., x_ksize_c
-        o[:, i, :] = np.dot(fenetre_X, self._parameters.T)
-    #print("COVO, forwad", o.shape)
+    dout = (d - self.k_size)//self.stride + 1 # une sortie est 2D d_out X chan_out
+    o = np.zeros((b,dout,self.chan_out))
+    for i in range(0,dout,self.stride):
+        fenetre_X = X[:, i*self.stride:i*self.stride+self.k_size, :]
+        o[:, i, :] = np.einsum('bkc,kco->bo', fenetre_X,self._parameters)
     return o
   
   def backward_update_gradient(self, input, delta):
-      #print("COVO delta grad, delta shape", delta.shape)
-      n_batch, d, C = input.shape
-      grad = np.zeros_like(self._parameters)
-      #print("GRAD", grad.shape)
-      for i in range(0, (d - self.k_size) // self.stride + 1, self.stride):
-          # applatir la fenetre X
-          fenetre_X = input[:, i * self.stride:i * self.stride + self.k_size, :].reshape(n_batch, -1)
-          grad += np.dot(delta[:, i, :].T, fenetre_X)
-      self._gradient += grad
+    #print("COVO delta grad, delta shape", delta.shape)
+    n_batch, d, C = input.shape
+    dout = (d - self.k_size)//self.stride + 1
+    for i in range(0,dout,self.stride):
+        fenetre_X = X[:, i*self.stride:i*self.stride+self.k_size, :]
+        d = delta[:,i,:]
+        self._gradient += np.einsum('bkc,bo->kco', fenetre_X,d)
+
 
   def backward_delta(self, input, delta):
-      #print("COVO delta, delta shape", delta.shape)
-      n_batch, d, C = input.shape
-      delta_h = np.zeros_like(input)
-      for i in range(0,(d-self.k_size)//self.stride+1,self.stride):
-          # applatir la fenetre X
-          fenetre_X = input[:, i*self.stride:i*self.stride+self.k_size, :].reshape(n_batch, -1)
-          delta_h[:, i*self.stride:i*self.stride+self.k_size, :] += np.dot(delta[:, i, :], self._parameters).reshape(n_batch, self.k_size, C)
-      return delta_h
+    #print("COVO delta, delta shape", delta.shape)
+    n_batch, d, C = input.shape
+    dout = (d - self.k_size)//self.stride + 1
+    delta_h = np.zeros_like(input)
+    for i in range(0,dout,self.stride):
+        d = delta[:,i,:]
+        delta_h[:, i*self.stride:i*self.stride+self.k_size, :] += np.einsum('bo,kco->bkc', d,W)
+    return delta_h
 
   def update_parameters(self, gradient_step=1e-3):
       self._parameters -= gradient_step*self._gradient
@@ -338,12 +331,11 @@ class MaxPool1D(Module):
         return delta_h
 
     def update_parameters(self, gradient_step):
-        pass  # No parameters to update in MaxPool1D
+        pass  
 
     def zero_grad(self):
-        pass  # No gradient in MaxPool1D
+        pass  
 
     def backward_update_gradient(self, input, delta):
-        pass  # No gradient to update in MaxPool1D
-
+        pass  
 
