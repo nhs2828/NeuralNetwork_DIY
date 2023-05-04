@@ -1,4 +1,3 @@
-83% of storage used … You can clean up space or get more storage for Drive, Gmail, and Google Photos.
 import numpy as np
 
 class Module(object):
