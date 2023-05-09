@@ -338,3 +338,4 @@ class MaxPool1D(Module):
     def backward_update_gradient(self, input, delta):
         pass  
 
+
