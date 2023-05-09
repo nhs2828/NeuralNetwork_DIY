@@ -234,7 +234,7 @@ class Conv1D(Module):
     self.chan_out = chan_out
     self.stride = stride
     if mode == 0:
-        self._parameters = np.random.randn(chan_out, k_size*chan_in)
+        self._parameters = np.random.randn(chan_out, k_size*chan_in) # nb_couche X ksize*C
     else:
         borne = np.sqrt(6 / (self.chan_in + self.chan_out))
         self._parameters = np.random.uniform(-borne, borne, (self.k_size, self.chan_in, self.chan_out))
