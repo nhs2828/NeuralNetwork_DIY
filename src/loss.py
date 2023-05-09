@@ -18,7 +18,13 @@ class MSELoss(Loss):
         """
         return -2*(y-yhat)
         
-
+class MAELoss(Loss):
+    def forward(self, y, yhat):
+        return np.mean(np.abs(y - yhat), axis=1)
+        
+    def backward(self, y, yhat):
+        return np.sign(yhat - y)
+        
 class SMCELoss(Loss):
     def forward(self, y, yhat):
         """Coût cross-entropique
